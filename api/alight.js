@@ -3,10 +3,10 @@ const crypto = require('crypto');
 
 const CONFIG = {
     BASE_URL: 'https://www.alightpro.my.id',
-    TIMEOUT: 20000 // Diubah ke 20 detik agar tidak menggantung terlalu lama
+    TIMEOUT: 20000
 };
 
-// Algoritma PoW yang dioptimalkan agar tidak memicu timeout di Vercel
+// Algoritma PoW yang dioptimalkan dengan challengeSeed
 function generatePow(challengeSeed, difficultyTarget = '0000') {
     let pow = '00000000';
     try {
@@ -22,7 +22,6 @@ function generatePow(challengeSeed, difficultyTarget = '0000') {
             }
         }
     } catch (e) {
-        // Fallback jika terjadi kendala pada hashing
         pow = Date.now().toString(16);
     }
     return pow;
@@ -39,6 +38,7 @@ async function getSession() {
             timeout: CONFIG.TIMEOUT
         });
 
+        // Validasi sesuai struktur JSON respons API terbaru
         if (!response.data || !response.data.token || !response.data.challengeSeed) {
             throw new Error('Format data sesi dari server target tidak valid.');
         }
@@ -51,9 +51,12 @@ async function getSession() {
             difficulty: response.data.difficulty || '0000'
         };
     } catch (error) {
+        const errDetail = error.response?.data ? 
+            (typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data) 
+            : error.message;
         return {
             success: false,
-            error: error.response?.data ? JSON.stringify(error.response.data) : error.message
+            error: errDetail
         };
     }
 }
@@ -72,7 +75,14 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { action, email, link } = req.body;
+        // Amankan parsing body request
+        let body = req.body;
+        if (typeof body === 'string') {
+            try { body = JSON.parse(body); } catch (e) { body = {}; }
+        }
+        body = body || {};
+
+        const { action, email, link } = body;
 
         if (!email) {
             return res.status(400).json({ success: false, error: 'Email wajib diisi!' });
@@ -123,13 +133,14 @@ module.exports = async (req, res) => {
         }
 
     } catch (error) {
-        // Mengirim detail error langsung ke respons agar mudah didiagnosis tanpa harus membuka log Vercel
-        const errorDetail = error.response?.data ? (typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data) : error.message;
+        const errorDetail = error.response?.data ? 
+            (typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data) 
+            : error.message;
         
-        console.error('API Execution Error:', errorDetail);
+        console.error('API Execution Error Stack:', error.stack);
         return res.status(500).json({
             success: false,
-            error: `Terjadi kesalahan pada server: ${errorDetail}`
+            error: `Runtime Exception: ${errorDetail}`
         });
     }
 };
