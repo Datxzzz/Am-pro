@@ -6,18 +6,18 @@ const CONFIG = {
     TIMEOUT: 60000
 };
 
-function generatePow(nonce) {
-    const target = '0000';
+// Algoritma PoW disesuaikan menggunakan challengeSeed dari server
+function generatePow(challengeSeed, difficultyTarget = '0000') {
     let pow = '';
     let found = false;
     
-    for (let i = 0; i < 1000000; i++) {
+    for (let i = 0; i < 2000000; i++) {
         const test = i.toString(16).padStart(8, '0');
         const hash = crypto.createHash('sha256')
-            .update(nonce + test)
+            .update(challengeSeed + test)
             .digest('hex');
         
-        if (hash.startsWith(target)) {
+        if (hash.startsWith(difficultyTarget)) {
             pow = test;
             found = true;
             break;
@@ -34,17 +34,28 @@ function generatePow(nonce) {
 async function getSession() {
     try {
         const response = await axios.get(`${CONFIG.BASE_URL}/api/session`, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            headers: { 
+                'X-Requested-With': 'XMLHttpRequest',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*'
+            },
             timeout: CONFIG.TIMEOUT
         });
+
+        // Validasi sesuai struktur JSON terbaru dari server
+        if (!response.data || !response.data.token || !response.data.challengeSeed) {
+            throw new Error('Format data sesi dari server target tidak valid.');
+        }
 
         return {
             success: true,
             token: response.data.token,
             nonce: response.data.nonce,
-            sessionId: response.data.sessionId
+            challengeSeed: response.data.challengeSeed,
+            difficulty: response.data.difficulty || '0000'
         };
     } catch (error) {
+        console.error('Session Error Detail:', error.response?.data || error.message);
         return {
             success: false,
             error: error.response?.data || error.message
@@ -74,14 +85,19 @@ module.exports = async (req, res) => {
 
         const session = await getSession();
         if (!session.success) {
-            return res.status(500).json({ success: false, error: 'Gagal mengambil sesi server.' });
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Gagal mengambil sesi server.' 
+            });
         }
 
-        const pow = generatePow(session.nonce);
+        // Generate PoW menggunakan challengeSeed yang didapat dari API session
+        const pow = generatePow(session.challengeSeed, session.difficulty);
 
         const headers = {
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'X-Amprem-Token': session.token,
             'X-Amprem-Nonce': session.nonce,
             'X-Amprem-Pow': pow
@@ -113,9 +129,10 @@ module.exports = async (req, res) => {
         }
 
     } catch (error) {
+        console.error('API Execution Error:', error.response?.data || error.message);
         return res.status(500).json({
             success: false,
-            error: error.response?.data || error.message
+            error: error.response?.data?.message || error.message
         });
     }
 };
