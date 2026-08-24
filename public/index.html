@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alight Motion Pro - Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- Google AdSense Script -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3430367519434825" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="blob-bg"></div>
+    <!-- Elemen Partikel Background -->
+    <div class="particles">
+        <span></span><span></span><span></span><span></span><span></span>
+    </div>
+
+    <!-- NAVBAR -->
+    <header class="top-nav">
+        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+        <div class="brand-title"> Get Premium Alight <span> Motion Pro</span></div>
+    </header>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <aside class="sidebar-3d" id="sidebar">
+        <div class="sidebar-header">
+            <h3> Menu Navigasi</h3>
+            <button class="close-btn" onclick="toggleSidebar()">×</button>
+        </div>
+        <div class="sidebar-links">
+            <a href="#" onclick="toggleSidebar()"> Beranda Utama</a>
+            <a href="https://t.me/Datxzfx" target="_blank" class="contact-owner-btn"> Contact Owner</a>
+        </div>
+        <div class="sidebar-faq-section">
+            <h4> FAQ & Panduan</h4>
+            <details><summary>Berapa lama proses upgrade?</summary><p>Proses berjalan instan kurang dari 2 menit setelah link OOB dimasukkan.</p></details>
+            <details><summary>Apakah data email aman?</summary><p>Aman, sistem menggunakan token enkripsi langsung tanpa menyimpan password.</p></details>
+        </div>
+
+        <div class="sidebar-footer">
+            <p><b>Policy & Terms:</b> Layanan ini disediakan untuk keperluan eksperimen dan hiburan.</p>
+            <p style="margin-top: 5px;">Alight Motion Pro </p>
+        </div>
+    </aside>
+    <div class="ad-modal-overlay" id="adModalOverlay">
+        <div class="ad-modal-card">
+            <h3> Sponsor Iklan Eksklusif</h3>
+            <p>Harap tonton iklan ini sebentar sebelum proses aktivasi dilanjutkan...</p>
+            <div class="ad-slot-box">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-3430367519434825"
+                     data-ad-slot="auto"
+                     data-ad-format="auto"
+                     data-full-width-responsive="true"></ins>
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            </div>
+            <div class="ad-timer-text">Lanjut otomatis dalam <span id="adModalCountdown">5</span> detik...</div>
+            <button class="btn-3d" id="closeAdModalBtn" disabled style="opacity: 0.5; margin-top: 10px;">Tutup & Proses Aktivasi</button>
+        </div>
+    </div>
+    <div class="container">
+        <div class="hero-3d">
+            <div class="badge-new"> Versi Terbaru 2026 - Kaisar Wangshu</div>
+            <h1>Alight Motion <span>Pro</span></h1>
+            <p>Platform upgrade premium otomatis dengan sistem enkripsi tingkat lanjut & stabil.</p>
+        </div>
+        <div class="card-3d" id="step1-card">
+            <h2> Langkah 1: Masukkan Gmail</h2>
+            <p>Kirimkan link verifikasi awal ke email akun Anda.</p>
+            <input type="email" id="emailInput" placeholder="namaemail@gmail.com" required>
+            <button class="btn-3d" onclick="sendEmail()">Kirim Link Verifikasi</button>
+        </div>
+        <div class="card-3d ad-card" id="ad-card" style="display:none;">
+            <h2> Memproses Permintaan</h2>
+            <p>Sistem sedang menyiapkan koneksi verifikasi...</p>
+            <div class="ad-box" id="adTimer">Lanjut dalam <span id="countdown">3</span> detik...</div>
+            <button class="btn-3d" id="skipAdBtn" disabled style="opacity: 0.5;">Lanjutkan ke OOB</button>
+        </div>
+        <div class="card-3d" id="step2-card" style="display:none;">
+            <h2> Langkah 2: Masukkan Link OOB</h2>
+            <p>Salin URL konfirmasi login dari kotak masuk email, lalu paste di sini.</p>
+            <input type="text" id="linkInput" placeholder="https://alightcreative.com/auth/...">
+            <button class="btn-3d" onclick="showActivationAd()">Aktivasi Premium Sekarang</button>
+        </div>
+        <div id="resultBox" class="result-box" style="display:none;"></div>
+    </div>
+
+    <script>
+        let userEmail = '';
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        async function sendEmail() {
+            userEmail = document.getElementById('emailInput').value;
+            if (!userEmail) return alert('Masukkan email terlebih dahulu!');
+
+            document.getElementById('step1-card').style.display = 'none';
+            document.getElementById('ad-card').style.display = 'block';
+            startAdCountdown();
+        }
+
+        function startAdCountdown() {
+            let seconds = 3;
+            const timerEl = document.getElementById('countdown');
+            const skipBtn = document.getElementById('skipAdBtn');
+
+            const interval = setInterval(() => {
+                seconds--;
+                timerEl.innerText = seconds;
+                if (seconds <= 0) {
+                    clearInterval(interval);
+                    document.getElementById('adTimer').innerText = 'Siap dilanjutkan!';
+                    skipBtn.removeAttribute('disabled');
+                    skipBtn.style.opacity = '1';
+                    skipBtn.onclick = triggerApiSend;
+                }
+            }, 1000);
+        }
+
+        async function triggerApiSend() {
+            document.getElementById('ad-card').style.display = 'none';
+            const resBox = document.getElementById('resultBox');
+            resBox.style.display = 'block';
+            resBox.innerText = 'Mengirim permintaan ke server...';
+
+            try {
+                const response = await fetch('/api/alight', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'send', email: userEmail })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    resBox.innerText = data.message;
+                    document.getElementById('step2-card').style.display = 'block';
+                } else {
+                    resBox.innerText = 'Error: ' + (data.error || 'Terjadi kesalahan');
+                }
+            } catch (err) {
+                resBox.innerText = 'Koneksi gagal!';
+            }
+        }
+
+        function showActivationAd() {
+            const link = document.getElementById('linkInput').value;
+            if (!link) return alert('Masukkan link OOB / URL konfirmasi!');
+
+            document.getElementById('adModalOverlay').style.display = 'flex';
+            
+            let seconds = 5;
+            const timerEl = document.getElementById('adModalCountdown');
+            const closeBtn = document.getElementById('closeAdModalBtn');
+
+            const interval = setInterval(() => {
+                seconds--;
+                timerEl.innerText = seconds;
+                if (seconds <= 0) {
+                    clearInterval(interval);
+                    document.querySelector('.ad-timer-text').innerText = 'Iklan Dapat Ditutup!';
+                    closeBtn.removeAttribute('disabled');
+                    closeBtn.style.opacity = '1';
+                    closeBtn.onclick = () => {
+                        document.getElementById('adModalOverlay').style.display = 'none';
+                        verifyAccount(link);
+                    };
+                }
+            }, 1000);
+        }
+
+        async function verifyAccount(link) {
+            const resBox = document.getElementById('resultBox');
+            resBox.innerText = 'Memproses aktivasi akun premium...';
+
+            try {
+                const response = await fetch('/api/alight', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: "verify", email: userEmail, link: link })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    resBox.innerHTML = ` <b>SUKSES!</b> Akun ${userEmail} berhasil di-upgrade ke Alight Motion Premium.`;
+                } else {
+                    resBox.innerText = 'Gagal Aktivasi: ' + (data.error || 'Link tidak valid');
+                }
+            } catch (err) {
+                resBox.innerText = 'Gagal verifikasi ke server.';
+            }
+        }
+    </script>
+</body>
+</html>
