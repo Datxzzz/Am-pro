@@ -1,0 +1,121 @@
+const axios = require('axios');
+const crypto = require('crypto');
+
+const CONFIG = {
+    BASE_URL: 'https://www.alightpro.my.id',
+    TIMEOUT: 60000
+};
+
+function generatePow(nonce) {
+    const target = '0000';
+    let pow = '';
+    let found = false;
+    
+    for (let i = 0; i < 1000000; i++) {
+        const test = i.toString(16).padStart(8, '0');
+        const hash = crypto.createHash('sha256')
+            .update(nonce + test)
+            .digest('hex');
+        
+        if (hash.startsWith(target)) {
+            pow = test;
+            found = true;
+            break;
+        }
+    }
+    
+    if (!found) {
+        pow = Date.now().toString(16);
+    }
+    
+    return pow;
+}
+
+async function getSession() {
+    try {
+        const response = await axios.get(`${CONFIG.BASE_URL}/api/session`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            timeout: CONFIG.TIMEOUT
+        });
+
+        return {
+            success: true,
+            token: response.data.token,
+            nonce: response.data.nonce,
+            sessionId: response.data.sessionId
+        };
+    } catch (error) {
+        return {
+            success: false,
+            error: error.response?.data || error.message
+        };
+    }
+}
+
+module.exports = async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Method not allowed' });
+    }
+
+    try {
+        const { action, email, link } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ success: false, error: 'Email wajib diisi!' });
+        }
+
+        const session = await getSession();
+        if (!session.success) {
+            return res.status(500).json({ success: false, error: 'Gagal mengambil sesi server.' });
+        }
+
+        const pow = generatePow(session.nonce);
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-Amprem-Token': session.token,
+            'X-Amprem-Nonce': session.nonce,
+            'X-Amprem-Pow': pow
+        };
+
+        if (action === 'verify' && link) {
+            const verifyResponse = await axios.post(`${CONFIG.BASE_URL}/api/alight-motion`, {
+                action: 'verify',
+                email: email,
+                link: link
+            }, { headers, timeout: CONFIG.TIMEOUT });
+
+            return res.status(200).json({
+                success: true,
+                message: 'Akun Alight Motion Berhasil di-upgrade ke Premium!',
+                data: verifyResponse.data
+            });
+        } else {
+            const sendResponse = await axios.post(`${CONFIG.BASE_URL}/api/alight-motion`, {
+                action: 'send',
+                email: email
+            }, { headers, timeout: CONFIG.TIMEOUT });
+
+            return res.status(200).json({
+                success: true,
+                step: 'send_success',
+                message: sendResponse.data.msg || 'Link OOB/Konfirmasi telah dikirim ke email Anda.',
+            });
+        }
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            error: error.response?.data || error.message
+        });
+    }
+};
