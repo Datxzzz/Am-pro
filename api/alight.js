@@ -3,31 +3,28 @@ const crypto = require('crypto');
 
 const CONFIG = {
     BASE_URL: 'https://www.alightpro.my.id',
-    TIMEOUT: 60000
+    TIMEOUT: 20000 // Diubah ke 20 detik agar tidak menggantung terlalu lama
 };
 
-// Algoritma PoW disesuaikan menggunakan challengeSeed dari server
+// Algoritma PoW yang dioptimalkan agar tidak memicu timeout di Vercel
 function generatePow(challengeSeed, difficultyTarget = '0000') {
-    let pow = '';
-    let found = false;
-    
-    for (let i = 0; i < 2000000; i++) {
-        const test = i.toString(16).padStart(8, '0');
-        const hash = crypto.createHash('sha256')
-            .update(challengeSeed + test)
-            .digest('hex');
-        
-        if (hash.startsWith(difficultyTarget)) {
-            pow = test;
-            found = true;
-            break;
+    let pow = '00000000';
+    try {
+        for (let i = 0; i < 500000; i++) {
+            const test = i.toString(16).padStart(8, '0');
+            const hash = crypto.createHash('sha256')
+                .update(challengeSeed + test)
+                .digest('hex');
+            
+            if (hash.startsWith(difficultyTarget)) {
+                pow = test;
+                break;
+            }
         }
-    }
-    
-    if (!found) {
+    } catch (e) {
+        // Fallback jika terjadi kendala pada hashing
         pow = Date.now().toString(16);
     }
-    
     return pow;
 }
 
@@ -42,7 +39,6 @@ async function getSession() {
             timeout: CONFIG.TIMEOUT
         });
 
-        // Validasi sesuai struktur JSON terbaru dari server
         if (!response.data || !response.data.token || !response.data.challengeSeed) {
             throw new Error('Format data sesi dari server target tidak valid.');
         }
@@ -50,15 +46,14 @@ async function getSession() {
         return {
             success: true,
             token: response.data.token,
-            nonce: response.data.nonce,
+            nonce: response.data.nonce || '',
             challengeSeed: response.data.challengeSeed,
             difficulty: response.data.difficulty || '0000'
         };
     } catch (error) {
-        console.error('Session Error Detail:', error.response?.data || error.message);
         return {
             success: false,
-            error: error.response?.data || error.message
+            error: error.response?.data ? JSON.stringify(error.response.data) : error.message
         };
     }
 }
@@ -87,11 +82,10 @@ module.exports = async (req, res) => {
         if (!session.success) {
             return res.status(500).json({ 
                 success: false, 
-                error: 'Gagal mengambil sesi server.' 
+                error: `Gagal mengambil sesi server: ${session.error}` 
             });
         }
 
-        // Generate PoW menggunakan challengeSeed yang didapat dari API session
         const pow = generatePow(session.challengeSeed, session.difficulty);
 
         const headers = {
@@ -129,10 +123,13 @@ module.exports = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('API Execution Error:', error.response?.data || error.message);
+        // Mengirim detail error langsung ke respons agar mudah didiagnosis tanpa harus membuka log Vercel
+        const errorDetail = error.response?.data ? (typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data) : error.message;
+        
+        console.error('API Execution Error:', errorDetail);
         return res.status(500).json({
             success: false,
-            error: error.response?.data?.message || error.message
+            error: `Terjadi kesalahan pada server: ${errorDetail}`
         });
     }
 };
